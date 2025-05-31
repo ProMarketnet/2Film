@@ -26,6 +26,173 @@ app = FastAPI()
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# TMDB Service Class
+class TMDBService:
+    def __init__(self):
+        self.api_key = os.environ.get('TMDB_API_KEY')
+        self.base_url = os.environ.get('TMDB_BASE_URL')
+        self.image_base_url = os.environ.get('TMDB_IMAGE_BASE_URL')
+        
+    async def _make_request(self, endpoint: str, params: dict = None) -> dict:
+        """Make authenticated request to TMDB API"""
+        if params is None:
+            params = {}
+        params['api_key'] = self.api_key
+        
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(f"{self.base_url}{endpoint}", params=params)
+                response.raise_for_status()
+                return response.json()
+        except httpx.HTTPStatusError as e:
+            logger.error(f"TMDB API HTTP error: {e.response.status_code} - {e.response.text}")
+            raise HTTPException(status_code=500, detail=f"TMDB API error: {e.response.status_code}")
+        except Exception as e:
+            logger.error(f"TMDB API error: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"TMDB API error: {str(e)}")
+    
+    async def search_multi(self, query: str, page: int = 1) -> dict:
+        """Search for movies, TV shows, and people"""
+        return await self._make_request("/search/multi", {"query": query, "page": page})
+    
+    async def search_movies(self, query: str, page: int = 1) -> dict:
+        """Search for movies by title"""
+        return await self._make_request("/search/movie", {"query": query, "page": page})
+    
+    async def search_tv_shows(self, query: str, page: int = 1) -> dict:
+        """Search for TV shows by title"""
+        return await self._make_request("/search/tv", {"query": query, "page": page})
+    
+    async def search_person(self, query: str, page: int = 1) -> dict:
+        """Search for actors/directors"""
+        return await self._make_request("/search/person", {"query": query, "page": page})
+    
+    async def get_popular_movies(self, page: int = 1) -> dict:
+        """Get popular movies"""
+        return await self._make_request("/movie/popular", {"page": page})
+    
+    async def get_popular_tv_shows(self, page: int = 1) -> dict:
+        """Get popular TV shows"""
+        return await self._make_request("/tv/popular", {"page": page})
+    
+    async def get_movie_details(self, movie_id: int) -> dict:
+        """Get detailed movie information"""
+        return await self._make_request(f"/movie/{movie_id}", {"append_to_response": "credits,videos"})
+    
+    async def get_tv_details(self, tv_id: int) -> dict:
+        """Get detailed TV show information"""
+        return await self._make_request(f"/tv/{tv_id}", {"append_to_response": "credits,videos"})
+    
+    async def get_movie_genres(self) -> dict:
+        """Get list of movie genres"""
+        return await self._make_request("/genre/movie/list")
+    
+    async def get_tv_genres(self) -> dict:
+        """Get list of TV genres"""
+        return await self._make_request("/genre/tv/list")
+    
+    async def discover_by_genre(self, genre_id: int, content_type: str = "movie", page: int = 1) -> dict:
+        """Discover movies or TV shows by genre"""
+        endpoint = f"/discover/{content_type}"
+        return await self._make_request(endpoint, {"with_genres": genre_id, "page": page})
+    
+    def get_full_image_url(self, image_path: str) -> str:
+        """Convert relative image path to full URL"""
+        if not image_path:
+            return "https://images.unsplash.com/photo-1440404653325-ab127d49abc1?w=300&h=450&fit=crop&crop=faces"
+        return f"{self.image_base_url}{image_path}"
+    
+    def format_movie_for_frontend(self, tmdb_movie: dict) -> dict:
+        """Convert TMDB movie format to frontend format"""
+        return {
+            "id": str(tmdb_movie.get("id", "")),
+            "title": tmdb_movie.get("title", "Unknown Title"),
+            "year": tmdb_movie.get("release_date", "")[:4] if tmdb_movie.get("release_date") else "Unknown",
+            "plot": tmdb_movie.get("overview", "No plot available"),
+            "poster": self.get_full_image_url(tmdb_movie.get("poster_path")),
+            "rating": str(tmdb_movie.get("vote_average", 0)),
+            "genre": self.get_genre_names(tmdb_movie.get("genre_ids", []), tmdb_movie.get("genres", [])),
+            "director": self.get_director_from_credits(tmdb_movie.get("credits", {})),
+            "actors": self.get_actors_from_credits(tmdb_movie.get("credits", {})),
+            "type": "movie",
+            "runtime": f"{tmdb_movie.get('runtime', 'Unknown')} min" if tmdb_movie.get('runtime') else "Unknown",
+            "country": self.get_countries(tmdb_movie.get("production_countries", [])),
+            "language": tmdb_movie.get("original_language", "").upper()
+        }
+    
+    def format_tv_for_frontend(self, tmdb_tv: dict) -> dict:
+        """Convert TMDB TV show format to frontend format"""
+        first_air = tmdb_tv.get('first_air_date', '')[:4] if tmdb_tv.get('first_air_date') else ''
+        last_air = tmdb_tv.get('last_air_date', '')[:4] if tmdb_tv.get('last_air_date') else ''
+        year_range = f"{first_air}-{last_air}" if first_air and last_air and first_air != last_air else first_air
+        
+        return {
+            "id": str(tmdb_tv.get("id", "")),
+            "title": tmdb_tv.get("name", "Unknown Title"),
+            "year": year_range or "Unknown",
+            "plot": tmdb_tv.get("overview", "No plot available"),
+            "poster": self.get_full_image_url(tmdb_tv.get("poster_path")),
+            "rating": str(tmdb_tv.get("vote_average", 0)),
+            "genre": self.get_genre_names(tmdb_tv.get("genre_ids", []), tmdb_tv.get("genres", [])),
+            "director": self.get_creator_from_tv(tmdb_tv.get("created_by", [])),
+            "actors": self.get_actors_from_credits(tmdb_tv.get("credits", {})),
+            "type": "tv",
+            "runtime": f"{tmdb_tv.get('episode_run_time', [45])[0] if tmdb_tv.get('episode_run_time') else 45} min per episode",
+            "country": self.get_countries(tmdb_tv.get("production_countries", [])),
+            "language": tmdb_tv.get("original_language", "").upper()
+        }
+    
+    def get_genre_names(self, genre_ids: list, genres: list = None) -> str:
+        """Convert genre IDs to genre names"""
+        # If we have genre objects directly, use them
+        if genres:
+            genre_names = [genre["name"] for genre in genres[:3]]
+            return ", ".join(genre_names) if genre_names else "Unknown"
+        
+        # Otherwise use genre ID mapping
+        genre_map = {
+            28: "Action", 12: "Adventure", 16: "Animation", 35: "Comedy", 80: "Crime",
+            99: "Documentary", 18: "Drama", 10751: "Family", 14: "Fantasy", 36: "History",
+            27: "Horror", 10402: "Music", 9648: "Mystery", 10749: "Romance", 878: "Sci-Fi",
+            10770: "TV Movie", 53: "Thriller", 10752: "War", 37: "Western", 10759: "Action & Adventure",
+            10762: "Kids", 10763: "News", 10764: "Reality", 10765: "Sci-Fi & Fantasy",
+            10766: "Soap", 10767: "Talk", 10768: "War & Politics"
+        }
+        genre_names = [genre_map.get(gid, f"Genre{gid}") for gid in genre_ids[:3]]
+        return ", ".join(genre_names) if genre_names else "Unknown"
+    
+    def get_director_from_credits(self, credits: dict) -> str:
+        """Extract director from movie credits"""
+        crew = credits.get("crew", [])
+        directors = [person["name"] for person in crew if person.get("job") == "Director"]
+        return ", ".join(directors[:2]) if directors else "Unknown"
+    
+    def get_creator_from_tv(self, creators: list) -> str:
+        """Extract creator from TV show"""
+        creator_names = [creator["name"] for creator in creators[:2]]
+        return ", ".join(creator_names) if creator_names else "Unknown"
+    
+    def get_actors_from_credits(self, credits: dict) -> str:
+        """Extract main actors from credits"""
+        cast = credits.get("cast", [])
+        actors = [person["name"] for person in cast[:4]]
+        return ", ".join(actors) if actors else "Unknown"
+    
+    def get_countries(self, countries: list) -> str:
+        """Extract production countries"""
+        country_names = [country["name"] for country in countries[:2]]
+        return ", ".join(country_names) if country_names else "Unknown"
+
+# Initialize TMDB service
+tmdb_service = TMDBService()
+
 # Models
 class MovieSearchRequest(BaseModel):
     query: str
@@ -51,143 +218,78 @@ class SearchHistory(BaseModel):
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     results_count: int
 
-# Mock movie data for demonstration (will be replaced with real API later)
-MOCK_MOVIES = [
-    {
-        "title": "The Matrix",
-        "year": "1999",
-        "plot": "A computer programmer discovers that reality as he knows it is a simulation. Teaming up with a group of rebels, he must fight to free humanity from their digital prison.",
-        "poster": "https://images.unsplash.com/photo-1440404653325-ab127d49abc1?w=300&h=450&fit=crop&crop=faces",
-        "rating": "8.7",
-        "genre": "Action, Sci-Fi",
-        "director": "The Wachowskis",
-        "actors": "Keanu Reeves, Laurence Fishburne, Carrie-Anne Moss",
-        "runtime": "136 min",
-        "country": "USA",
-        "language": "English"
-    },
-    {
-        "title": "Inception",
-        "year": "2010",
-        "plot": "A thief who enters people's dreams to steal their secrets must plant an idea deep within a target's subconscious in this mind-bending heist thriller.",
-        "poster": "https://images.unsplash.com/photo-1518676590629-3dcbd9c5a5c9?w=300&h=450&fit=crop&crop=faces",
-        "rating": "8.8",
-        "genre": "Action, Drama, Sci-Fi",
-        "director": "Christopher Nolan",
-        "actors": "Leonardo DiCaprio, Marion Cotillard, Tom Hardy",
-        "runtime": "148 min",
-        "country": "USA",
-        "language": "English"
-    },
-    {
-        "title": "The Dark Knight",
-        "year": "2008",
-        "plot": "When the Joker wreaks havoc and chaos on the people of Gotham, Batman must accept one of the greatest psychological and physical tests of his ability to fight injustice.",
-        "poster": "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=300&h=450&fit=crop&crop=faces",
-        "rating": "9.0",
-        "genre": "Action, Crime, Drama",
-        "director": "Christopher Nolan",
-        "actors": "Christian Bale, Heath Ledger, Aaron Eckhart",
-        "runtime": "152 min",
-        "country": "USA",
-        "language": "English"
-    },
-    {
-        "title": "Pulp Fiction",
-        "year": "1994",
-        "plot": "The lives of two mob hitmen, a boxer, a gangster's wife, and a pair of diner bandits intertwine in four tales of violence and redemption.",
-        "poster": "https://images.unsplash.com/photo-1594909122845-11baa439b7bf?w=300&h=450&fit=crop&crop=faces",
-        "rating": "8.9",
-        "genre": "Crime, Drama",
-        "director": "Quentin Tarantino",
-        "actors": "John Travolta, Uma Thurman, Samuel L. Jackson",
-        "runtime": "154 min",
-        "country": "USA",
-        "language": "English"
-    },
-    {
-        "title": "Interstellar",
-        "year": "2014",
-        "plot": "A team of explorers travel through a wormhole in space in an attempt to ensure humanity's survival when Earth faces environmental collapse.",
-        "poster": "https://images.unsplash.com/photo-1446776653964-20c1d3a81b06?w=300&h=450&fit=crop&crop=faces",
-        "rating": "8.6",
-        "genre": "Adventure, Drama, Sci-Fi",
-        "director": "Christopher Nolan",
-        "actors": "Matthew McConaughey, Anne Hathaway, Jessica Chastain",
-        "runtime": "169 min",
-        "country": "USA",
-        "language": "English"
-    }
-]
-
-MOCK_TV_SHOWS = [
-    {
-        "title": "Breaking Bad",
-        "year": "2008-2013",
-        "plot": "A high school chemistry teacher diagnosed with inoperable lung cancer turns to manufacturing and selling methamphetamine to secure his family's future.",
-        "poster": "https://images.unsplash.com/photo-1616530940355-351fabd9524b?w=300&h=450&fit=crop&crop=faces",
-        "rating": "9.5",
-        "genre": "Crime, Drama, Thriller",
-        "director": "Vince Gilligan",
-        "actors": "Bryan Cranston, Aaron Paul, Anna Gunn",
-        "type": "tv",
-        "runtime": "47 min per episode",
-        "country": "USA",
-        "language": "English"
-    },
-    {
-        "title": "Stranger Things",
-        "year": "2016-2025",
-        "plot": "When a young boy disappears, his mother, a police chief and his friends must confront terrifying supernatural forces in order to get him back.",
-        "poster": "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=300&h=450&fit=crop&crop=faces",
-        "rating": "8.7",
-        "genre": "Drama, Fantasy, Horror",
-        "director": "The Duffer Brothers",
-        "actors": "Millie Bobby Brown, Finn Wolfhard, Winona Ryder",
-        "type": "tv",
-        "runtime": "51 min per episode",
-        "country": "USA",
-        "language": "English"
-    }
-]
-
 @api_router.get("/")
 async def root():
-    return {"message": "Film & Movie Agent API - Search for your favorite films and shows!"}
+    return {"message": "Film & Movie Agent API - Search for your favorite films and shows with real TMDB data!"}
 
 @api_router.post("/movies/search")
 async def search_movies(request: MovieSearchRequest):
-    """Search for movies and TV shows"""
+    """Search for movies and TV shows using TMDB API"""
     try:
-        query = request.query.lower().strip()
+        query = request.query.strip()
         
         if not query:
             raise HTTPException(status_code=400, detail="Search query cannot be empty")
         
-        # Search in mock data (case-insensitive)
+        # Search using TMDB multi search to get movies, TV shows, and people
+        tmdb_results = await tmdb_service.search_multi(query)
+        
         results = []
         
-        # Search movies
-        for movie_data in MOCK_MOVIES:
-            if (query in movie_data["title"].lower() or 
-                query in movie_data["genre"].lower() or 
-                query in movie_data["director"].lower() or 
-                query in movie_data["actors"].lower() or
-                query in movie_data["plot"].lower()):
-                
-                movie = Movie(**movie_data)
-                results.append(movie)
-        
-        # Search TV shows
-        for show_data in MOCK_TV_SHOWS:
-            if (query in show_data["title"].lower() or 
-                query in show_data["genre"].lower() or 
-                query in show_data["director"].lower() or 
-                query in show_data["actors"].lower() or
-                query in show_data["plot"].lower()):
-                
-                show = Movie(**show_data)
-                results.append(show)
+        # Process TMDB results
+        for item in tmdb_results.get("results", [])[:15]:  # Limit to 15 results
+            try:
+                if item.get("media_type") == "movie":
+                    # Get detailed movie info with credits
+                    try:
+                        detailed_movie = await tmdb_service.get_movie_details(item["id"])
+                        formatted_movie = tmdb_service.format_movie_for_frontend(detailed_movie)
+                        results.append(formatted_movie)
+                    except Exception as e:
+                        logger.warning(f"Failed to get movie details for {item.get('title', 'Unknown')}: {e}")
+                        # Use basic info if detailed request fails
+                        formatted_movie = tmdb_service.format_movie_for_frontend(item)
+                        results.append(formatted_movie)
+                        
+                elif item.get("media_type") == "tv":
+                    # Get detailed TV show info with credits
+                    try:
+                        detailed_tv = await tmdb_service.get_tv_details(item["id"])
+                        formatted_tv = tmdb_service.format_tv_for_frontend(detailed_tv)
+                        results.append(formatted_tv)
+                    except Exception as e:
+                        logger.warning(f"Failed to get TV details for {item.get('name', 'Unknown')}: {e}")
+                        # Use basic info if detailed request fails
+                        formatted_tv = tmdb_service.format_tv_for_frontend(item)
+                        results.append(formatted_tv)
+                        
+                elif item.get("media_type") == "person":
+                    # If searching for a person, get their popular movies/TV shows
+                    try:
+                        person_credits = await tmdb_service._make_request(f"/person/{item['id']}/combined_credits")
+                        # Add top-rated movies/shows from this person
+                        cast_credits = person_credits.get("cast", [])
+                        crew_credits = person_credits.get("crew", [])
+                        
+                        # Combine and sort by popularity
+                        all_credits = cast_credits + crew_credits
+                        all_credits.sort(key=lambda x: x.get("popularity", 0), reverse=True)
+                        
+                        # Add top 3 works from this person
+                        for credit in all_credits[:3]:
+                            if credit.get("media_type") == "movie":
+                                formatted_movie = tmdb_service.format_movie_for_frontend(credit)
+                                results.append(formatted_movie)
+                            elif credit.get("media_type") == "tv":
+                                formatted_tv = tmdb_service.format_tv_for_frontend(credit)
+                                results.append(formatted_tv)
+                                
+                    except Exception as e:
+                        logger.warning(f"Failed to get person credits for {item.get('name', 'Unknown')}: {e}")
+                        
+            except Exception as e:
+                logger.warning(f"Error processing search result: {e}")
+                continue
         
         # Save search to history
         search_record = SearchHistory(
@@ -200,7 +302,7 @@ async def search_movies(request: MovieSearchRequest):
             "query": request.query,
             "results": results,
             "total": len(results),
-            "message": f"Found {len(results)} results for '{request.query}'"
+            "message": f"Found {len(results)} results for '{request.query}' from TMDB"
         }
         
     except Exception as e:
@@ -209,30 +311,74 @@ async def search_movies(request: MovieSearchRequest):
 
 @api_router.get("/movies/popular")
 async def get_popular_movies():
-    """Get popular movies"""
-    # Return top-rated movies from our mock data
-    popular = sorted(MOCK_MOVIES + MOCK_TV_SHOWS, 
-                    key=lambda x: float(x["rating"]), reverse=True)[:10]
-    
-    return {
-        "results": [Movie(**item) for item in popular],
-        "total": len(popular),
-        "message": "Popular movies and shows"
-    }
+    """Get popular movies and TV shows from TMDB"""
+    try:
+        # Get popular movies and TV shows
+        popular_movies_data = await tmdb_service.get_popular_movies()
+        popular_tv_data = await tmdb_service.get_popular_tv_shows()
+        
+        results = []
+        
+        # Format movies
+        for movie in popular_movies_data.get("results", [])[:8]:
+            try:
+                detailed_movie = await tmdb_service.get_movie_details(movie["id"])
+                formatted_movie = tmdb_service.format_movie_for_frontend(detailed_movie)
+                results.append(formatted_movie)
+            except Exception as e:
+                logger.warning(f"Failed to get popular movie details: {e}")
+                formatted_movie = tmdb_service.format_movie_for_frontend(movie)
+                results.append(formatted_movie)
+        
+        # Format TV shows
+        for tv_show in popular_tv_data.get("results", [])[:8]:
+            try:
+                detailed_tv = await tmdb_service.get_tv_details(tv_show["id"])
+                formatted_tv = tmdb_service.format_tv_for_frontend(detailed_tv)
+                results.append(formatted_tv)
+            except Exception as e:
+                logger.warning(f"Failed to get popular TV details: {e}")
+                formatted_tv = tmdb_service.format_tv_for_frontend(tv_show)
+                results.append(formatted_tv)
+        
+        # Sort by rating
+        results.sort(key=lambda x: float(x["rating"]), reverse=True)
+        
+        return {
+            "results": results,
+            "total": len(results),
+            "message": "Popular movies and shows from TMDB"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting popular content: {str(e)}")
+        raise HTTPException(status_code=500, detail="An error occurred while fetching popular content")
 
 @api_router.get("/movies/genres")
 async def get_genres():
-    """Get available genres"""
-    all_genres = set()
-    
-    for movie in MOCK_MOVIES + MOCK_TV_SHOWS:
-        genres = [g.strip() for g in movie["genre"].split(",")]
-        all_genres.update(genres)
-    
-    return {
-        "genres": sorted(list(all_genres)),
-        "total": len(all_genres)
-    }
+    """Get available genres from TMDB"""
+    try:
+        # Get both movie and TV genres
+        movie_genres = await tmdb_service.get_movie_genres()
+        tv_genres = await tmdb_service.get_tv_genres()
+        
+        all_genres = set()
+        
+        # Combine genres from both movies and TV
+        for genre in movie_genres.get("genres", []):
+            all_genres.add(genre["name"])
+        
+        for genre in tv_genres.get("genres", []):
+            all_genres.add(genre["name"])
+        
+        return {
+            "genres": sorted(list(all_genres)),
+            "total": len(all_genres)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching genres: {str(e)}")
+        raise HTTPException(status_code=500, detail="An error occurred while fetching genres")
 
 @api_router.get("/search/history")
 async def get_search_history():
@@ -249,22 +395,43 @@ async def get_search_history():
 
 @api_router.get("/movies/{movie_id}")
 async def get_movie_details(movie_id: str):
-    """Get detailed information about a specific movie"""
-    # For mock data, we'll search by title as ID
-    all_content = MOCK_MOVIES + MOCK_TV_SHOWS
-    
-    for item in all_content:
-        if movie_id.lower() in item["title"].lower():
-            return Movie(**item)
-    
-    raise HTTPException(status_code=404, detail="Movie not found")
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+    """Get detailed information about a specific movie or TV show"""
+    try:
+        # Try to parse as integer for TMDB ID
+        try:
+            tmdb_id = int(movie_id)
+            # Try movie first
+            try:
+                movie_data = await tmdb_service.get_movie_details(tmdb_id)
+                return tmdb_service.format_movie_for_frontend(movie_data)
+            except:
+                # If movie fails, try TV show
+                tv_data = await tmdb_service.get_tv_details(tmdb_id)
+                return tmdb_service.format_tv_for_frontend(tv_data)
+        except ValueError:
+            # If not a valid integer, search by title
+            search_results = await tmdb_service.search_multi(movie_id)
+            
+            for item in search_results.get("results", []):
+                if (item.get("media_type") == "movie" and 
+                    movie_id.lower() in item.get("title", "").lower()):
+                    
+                    detailed_movie = await tmdb_service.get_movie_details(item["id"])
+                    return tmdb_service.format_movie_for_frontend(detailed_movie)
+                    
+                elif (item.get("media_type") == "tv" and 
+                      movie_id.lower() in item.get("name", "").lower()):
+                    
+                    detailed_tv = await tmdb_service.get_tv_details(item["id"])
+                    return tmdb_service.format_tv_for_frontend(detailed_tv)
+            
+            raise HTTPException(status_code=404, detail="Movie or TV show not found")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching movie details: {str(e)}")
+        raise HTTPException(status_code=500, detail="An error occurred while fetching movie details")
 
 # Include the router in the main app
 app.include_router(api_router)
