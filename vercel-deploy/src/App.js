@@ -24,7 +24,7 @@ function App() {
 
   const fetchPopularMovies = async () => {
     try {
-      const response = await axios.get(`${API}/movies/popular`);
+      const response = await axios.get(`${API}/popular`);
       setPopularMovies(response.data.results);
     } catch (error) {
       console.error("Error fetching popular movies:", error);
@@ -33,7 +33,7 @@ function App() {
 
   const fetchGenres = async () => {
     try {
-      const response = await axios.get(`${API}/movies/genres`);
+      const response = await axios.get(`${API}/genres`);
       setGenres(response.data.genres);
     } catch (error) {
       console.error("Error fetching genres:", error);
@@ -42,7 +42,7 @@ function App() {
 
   const fetchSearchHistory = async () => {
     try {
-      const response = await axios.get(`${API}/search/history`);
+      const response = await axios.get(`${API}/history`);
       setSearchHistory(response.data.history);
     } catch (error) {
       console.error("Error fetching search history:", error);
@@ -58,7 +58,7 @@ function App() {
     setMovies([]);
 
     try {
-      const response = await axios.post(`${API}/movies/search`, {
+      const response = await axios.post(`${API}/search`, {
         query: searchQuery.trim()
       });
       
@@ -82,7 +82,7 @@ function App() {
     setError("");
     setMovies([]);
 
-    axios.post(`${API}/movies/search`, { query })
+    axios.post(`${API}/search`, { query })
       .then(response => {
         setMovies(response.data.results);
         if (response.data.results.length === 0) {
