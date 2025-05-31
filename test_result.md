@@ -107,51 +107,75 @@ user_problem_statement: "Film & Movie Agent where fans can search for their best
 backend:
   - task: "Movie Search API Endpoint"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Implemented POST /api/movies/search endpoint with mock movie/TV data. Supports case-insensitive search across title, genre, director, actors, and plot."
+      - working: true
+        agent: "testing"
+        comment: "Successfully tested the Movie Search API. Verified search functionality by title ('Matrix'), genre ('Action'), director ('Nolan'), and actor ('Leonardo'). Case-insensitive search works correctly. Empty search queries return 400 error as expected. Response format includes all required movie details (id, title, year, plot, poster, rating, genre, director, actors)."
 
   - task: "Popular Movies API Endpoint"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Implemented GET /api/movies/popular endpoint that returns top-rated movies and shows sorted by rating."
+      - working: true
+        agent: "testing"
+        comment: "Successfully tested the Popular Movies API. Verified that results are correctly sorted by rating (highest first). Response includes both movies and TV shows as expected. Response format is correct with all required fields."
 
   - task: "Genres API Endpoint"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Implemented GET /api/movies/genres endpoint that extracts unique genres from all content."
+      - working: true
+        agent: "testing"
+        comment: "Successfully tested the Genres API. Verified that it returns all available genres from both movies and TV shows. Found 8 unique genres including expected ones like 'Action', 'Drama', and 'Sci-Fi'. Response format is correct."
 
   - task: "Search History Tracking"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "low"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Implemented MongoDB integration to store and retrieve search history with timestamps and result counts."
+      - working: true
+        agent: "testing"
+        comment: "Successfully tested Search History tracking. Verified that search queries are being stored in MongoDB and can be retrieved via the GET /api/search/history endpoint. Test search query was correctly recorded and returned in the history with timestamp and result count."
+
+  - task: "Movie Details API Endpoint"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Successfully tested the Movie Details API. Verified that GET /api/movies/{movie_id} returns correct details for specific movies. Tested with 'matrix' and confirmed all details were returned correctly. Non-existent movies return 404 error as expected."
 
 frontend:
   - task: "Movie Search Interface"
@@ -217,12 +241,11 @@ frontend:
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 0
+  test_sequence: 1
   run_ui: false
 
 test_plan:
   current_focus:
-    - "Movie Search API Endpoint"
     - "Movie Search Interface"
     - "Movie Display Grid"
   stuck_tasks: []
@@ -232,3 +255,5 @@ test_plan:
 agent_communication:
   - agent: "main"
     message: "Implemented complete Film & Movie Agent application with mock data. Backend has search, popular movies, genres, and history endpoints. Frontend has modern responsive UI with search, grid display, detailed modals, and sidebar. Ready for backend testing first, then frontend testing. Using mock movie/TV data initially - can be easily replaced with real API integration later."
+  - agent: "testing"
+    message: "Completed comprehensive testing of all backend API endpoints. Created and executed backend_test.py which tests all required functionality. All backend endpoints are working correctly: Movie Search API, Popular Movies API, Genres API, Search History tracking, and Movie Details API. The backend is fully functional with proper error handling and MongoDB integration. Ready for frontend testing next."
