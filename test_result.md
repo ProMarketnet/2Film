@@ -105,77 +105,65 @@
 user_problem_statement: "Film & Movie Agent where fans can search for their best films and shows to find information"
 
 backend:
-  - task: "Movie Search API Endpoint"
+  - task: "TMDB Movie Search API Endpoint"
     implemented: true
-    working: true
+    working: "NA"
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
       - working: "NA"
         agent: "main"
-        comment: "Implemented POST /api/movies/search endpoint with mock movie/TV data. Supports case-insensitive search across title, genre, director, actors, and plot."
-      - working: true
-        agent: "testing"
-        comment: "Successfully tested the Movie Search API. Verified search functionality by title ('Matrix'), genre ('Action'), director ('Nolan'), and actor ('Leonardo'). Case-insensitive search works correctly. Empty search queries return 400 error as expected. Response format includes all required movie details (id, title, year, plot, poster, rating, genre, director, actors)."
+        comment: "Upgraded from mock data to real TMDB API integration. Supports comprehensive search across movies, TV shows, and people with detailed cast/crew information."
 
-  - task: "Popular Movies API Endpoint"
+  - task: "TMDB Popular Movies API Endpoint"
     implemented: true
-    working: true
+    working: "NA"
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
       - working: "NA"
         agent: "main"
-        comment: "Implemented GET /api/movies/popular endpoint that returns top-rated movies and shows sorted by rating."
-      - working: true
-        agent: "testing"
-        comment: "Successfully tested the Popular Movies API. Verified that results are correctly sorted by rating (highest first). Response includes both movies and TV shows as expected. Response format is correct with all required fields."
+        comment: "Integrated with TMDB popular movies and TV shows endpoints with detailed information including cast, crew, and high-quality poster images."
 
-  - task: "Genres API Endpoint"
+  - task: "TMDB Genres API Endpoint"
     implemented: true
-    working: true
+    working: "NA"
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
       - working: "NA"
         agent: "main"
-        comment: "Implemented GET /api/movies/genres endpoint that extracts unique genres from all content."
-      - working: true
-        agent: "testing"
-        comment: "Successfully tested the Genres API. Verified that it returns all available genres from both movies and TV shows. Found 8 unique genres including expected ones like 'Action', 'Drama', and 'Sci-Fi'. Response format is correct."
+        comment: "Fetches real genre data from TMDB for both movies and TV shows, combining them into a comprehensive genre list."
 
   - task: "Search History Tracking"
     implemented: true
-    working: true
+    working: "NA"
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "low"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
       - working: "NA"
         agent: "main"
-        comment: "Implemented MongoDB integration to store and retrieve search history with timestamps and result counts."
-      - working: true
-        agent: "testing"
-        comment: "Successfully tested Search History tracking. Verified that search queries are being stored in MongoDB and can be retrieved via the GET /api/search/history endpoint. Test search query was correctly recorded and returned in the history with timestamp and result count."
+        comment: "Maintained MongoDB integration for search history tracking with TMDB search results."
 
-  - task: "Movie Details API Endpoint"
+  - task: "TMDB Movie Details API"
     implemented: true
-    working: true
+    working: "NA"
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
-      - working: true
-        agent: "testing"
-        comment: "Successfully tested the Movie Details API. Verified that GET /api/movies/{movie_id} returns correct details for specific movies. Tested with 'matrix' and confirmed all details were returned correctly. Non-existent movies return 404 error as expected."
+      - working: "NA"
+        agent: "main"
+        comment: "Added comprehensive movie/TV show details endpoint with TMDB integration including cast, crew, videos, and full metadata."
 
 frontend:
   - task: "Movie Search Interface"
@@ -188,7 +176,7 @@ frontend:
     status_history:
       - working: "NA"
         agent: "main"
-        comment: "Created responsive search interface with hero section, search form, and real-time search functionality."
+        comment: "Frontend ready to consume TMDB data through existing API structure - no changes needed due to consistent response format."
 
   - task: "Movie Display Grid"
     implemented: true
@@ -200,7 +188,7 @@ frontend:
     status_history:
       - working: "NA"
         agent: "main"
-        comment: "Implemented movie card grid layout with poster images, ratings, and hover effects."
+        comment: "Movie grid will now display real TMDB posters and data instead of mock content."
 
   - task: "Movie Details Modal"
     implemented: true
@@ -212,7 +200,7 @@ frontend:
     status_history:
       - working: "NA"
         agent: "main"
-        comment: "Created detailed movie modal popup showing full plot, cast, director, genre tags, and movie metadata."
+        comment: "Modal will show real cast, crew, and movie metadata from TMDB API."
 
   - task: "Responsive Design & Styling"
     implemented: true
@@ -224,7 +212,7 @@ frontend:
     status_history:
       - working: "NA"
         agent: "main"
-        comment: "Implemented modern CSS with dark theme, gradients, backdrop filters, responsive grid, and mobile-first design."
+        comment: "Styling remains unchanged and compatible with TMDB image URLs and data structure."
 
   - task: "Sidebar with Genres and History"
     implemented: true
@@ -236,24 +224,23 @@ frontend:
     status_history:
       - working: "NA"
         agent: "main"
-        comment: "Added sidebar with quick genre navigation and recent search history for improved user experience."
+        comment: "Sidebar will now show real TMDB genres and search history."
 
 metadata:
   created_by: "main_agent"
-  version: "1.0"
+  version: "2.0"
   test_sequence: 1
   run_ui: false
 
 test_plan:
   current_focus:
-    - "Movie Search Interface"
-    - "Movie Display Grid"
+    - "TMDB Movie Search API Endpoint"
+    - "TMDB Popular Movies API Endpoint"
+    - "TMDB Genres API Endpoint"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
 agent_communication:
   - agent: "main"
-    message: "Implemented complete Film & Movie Agent application with mock data. Backend has search, popular movies, genres, and history endpoints. Frontend has modern responsive UI with search, grid display, detailed modals, and sidebar. Ready for backend testing first, then frontend testing. Using mock movie/TV data initially - can be easily replaced with real API integration later."
-  - agent: "testing"
-    message: "Completed comprehensive testing of all backend API endpoints. Created and executed backend_test.py which tests all required functionality. All backend endpoints are working correctly: Movie Search API, Popular Movies API, Genres API, Search History tracking, and Movie Details API. The backend is fully functional with proper error handling and MongoDB integration. Ready for frontend testing next."
+    message: "Upgraded Film & Movie Agent from mock data to real TMDB API integration. Backend now fetches live movie/TV data including real posters, cast, crew, ratings, and comprehensive metadata. API structure maintained for frontend compatibility. Ready for testing with TMDB API key: 177b48eb85143a28a9aac14ec0e5a679"
