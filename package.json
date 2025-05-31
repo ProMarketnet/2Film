@@ -1,0 +1,14 @@
+{
+  "name": "film-movie-agent",
+  "version": "1.0.0",
+  "description": "Film & Movie Agent - Search for your favorite films and shows",
+  "main": "index.js",
+  "scripts": {
+    "build": "cd frontend && npm run build",
+    "start": "cd frontend && npm start",
+    "dev": "cd frontend && npm start"
+  },
+  "keywords": ["movies", "films", "tv-shows", "tmdb", "search"],
+  "author": "Film Movie Agent",
+  "license": "MIT"
+}

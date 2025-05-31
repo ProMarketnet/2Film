@@ -1,70 +1,100 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-.idea/
-dist
-# dependencies
+# Dependencies
 node_modules/
-/.pnp
-.pnp.js
-.yarn/install-state.gz
-.vscode
-# testing
-/coverage
-dump.rdb
-chainlit.md
-.chainlit
-# next.js
-/.next/
-/out/
-.ipynb_checkpoints/
-# production
-/build
+__pycache__/
+*.py[cod]
+*$py.class
 
-# misc
-.DS_Store
-*.pem
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
-# debug
+# Build outputs
+frontend/build/
+frontend/dist/
+backend/dist/
+
+# Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+*.log
 
-# local env files
-# .env*.local
-*token.json*
-# vercel
-.vercel
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
 
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-*pyc*
-#*.env
-.ac
-agenthub/agents/youtube/db
-*credentials.json*
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
 
-venv/
-.venv/
-__pycache__/
+# nyc test coverage
+.nyc_output
 
-# ===================
-# ADDITIONAL RULES TO PREVENT FILE SIZE VIOLATIONS
-# ===================
-# Archive files (anywhere in the project)
-**/*.zip
-**/*.tar.gz
-**/*.tar
-**/*.tgz
+# Dependency directories
+jspm_packages/
 
-# Build caches and artifacts
-.cache/
-*.pack
+# Optional npm cache directory
+.npm
 
-# System packages
-*.deb
+# Optional eslint cache
+.eslintcache
 
-# Python native libraries
-*.dylib
+# Output of 'npm pack'
+*.tgz
 
-# Android SDK
-android-sdk/
+# Yarn Integrity file
+.yarn-integrity
+
+# parcel-bundler cache (https://parceljs.org/)
+.cache
+.parcel-cache
+
+# next.js build output
+.next
+
+# nuxt.js build output
+.nuxt
+
+# vuepress build output
+.vuepress/dist
+
+# Serverless directories
+.serverless
+
+# FuseBox cache
+.fusebox/
+
+# DynamoDB Local files
+.dynamodb/
+
+# TernJS port file
+.tern-port
+
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test
+
+# MongoDB data
+data/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing
+backend_test.py
+test_results/
