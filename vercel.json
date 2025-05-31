@@ -1,13 +1,7 @@
 {
   "version": 2,
+  "buildCommand": "cd frontend && npm install && npm run build && cd .. && cp -r frontend/build ./build",
   "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "build"
-      }
-    },
     {
       "src": "backend/server.py",
       "use": "@vercel/python"
