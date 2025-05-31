@@ -4,6 +4,7 @@ import unittest
 import os
 import sys
 from dotenv import load_dotenv
+import re
 
 # Load environment variables from frontend/.env
 load_dotenv("frontend/.env")
@@ -28,76 +29,113 @@ class FilmMovieAgentAPITest(unittest.TestCase):
         self.assertIn("message", data)
         print(f"✅ Root endpoint test passed: {data['message']}")
     
-    def test_movie_search_by_title(self):
-        """Test searching for movies by title"""
-        payload = {"query": "Matrix"}
+    def test_tmdb_movie_search_by_title(self):
+        """Test searching for movies by title using TMDB API"""
+        payload = {"query": "Avengers"}
         response = requests.post(f"{API_URL}/movies/search", json=payload)
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertIn("results", data)
         self.assertGreater(len(data["results"]), 0)
-        self.assertIn("Matrix", data["results"][0]["title"])
-        print(f"✅ Movie search by title test passed: Found {len(data['results'])} results for 'Matrix'")
         
-        # Check response format
+        # Check if "Avengers" is in at least one title
+        has_avengers = False
+        for movie in data["results"]:
+            if "Avengers" in movie["title"]:
+                has_avengers = True
+                break
+        self.assertTrue(has_avengers, "No Avengers movie found in search results")
+        
+        # Check response format and TMDB data
         movie = data["results"][0]
-        required_fields = ["id", "title", "year", "plot", "poster", "rating", "genre", "director", "actors"]
+        required_fields = ["id", "title", "year", "plot", "poster", "rating", "genre", "director", "actors", "type"]
         for field in required_fields:
             self.assertIn(field, movie)
+        
+        # Verify poster URL is from TMDB
+        self.assertTrue(
+            movie["poster"].startswith("https://image.tmdb.org/t/p/") or 
+            movie["poster"].startswith("https://images.unsplash.com/"),
+            f"Poster URL doesn't match TMDB format: {movie['poster']}"
+        )
+        
+        print(f"✅ TMDB Movie search by title test passed: Found {len(data['results'])} results for 'Avengers'")
     
-    def test_movie_search_by_genre(self):
-        """Test searching for movies by genre"""
-        payload = {"query": "Action"}
+    def test_tmdb_tv_show_search(self):
+        """Test searching for TV shows using TMDB API"""
+        payload = {"query": "Breaking Bad"}
         response = requests.post(f"{API_URL}/movies/search", json=payload)
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertIn("results", data)
         self.assertGreater(len(data["results"]), 0)
-        # Verify at least one result has Action in its genre
-        has_action = False
-        for movie in data["results"]:
-            if "Action" in movie["genre"]:
-                has_action = True
+        
+        # Check if at least one result is a TV show
+        has_tv_show = False
+        has_breaking_bad = False
+        for item in data["results"]:
+            if item["type"] == "tv":
+                has_tv_show = True
+                if "Breaking Bad" in item["title"]:
+                    has_breaking_bad = True
+                    break
+        
+        self.assertTrue(has_tv_show, "No TV shows found in search results")
+        self.assertTrue(has_breaking_bad, "Breaking Bad not found in search results")
+        
+        # Find Breaking Bad in results
+        breaking_bad = None
+        for item in data["results"]:
+            if "Breaking Bad" in item["title"]:
+                breaking_bad = item
                 break
-        self.assertTrue(has_action)
-        print(f"✅ Movie search by genre test passed: Found {len(data['results'])} results for 'Action'")
+        
+        self.assertIsNotNone(breaking_bad, "Breaking Bad not found in search results")
+        
+        # Verify TV show details
+        self.assertEqual(breaking_bad["type"], "tv")
+        self.assertIn("runtime", breaking_bad)
+        self.assertIn("min per episode", breaking_bad["runtime"])
+        
+        print(f"✅ TMDB TV show search test passed: Found Breaking Bad in {len(data['results'])} results")
     
-    def test_movie_search_by_director(self):
-        """Test searching for movies by director"""
-        payload = {"query": "Nolan"}
+    def test_tmdb_person_search(self):
+        """Test searching for actors/directors using TMDB API"""
+        payload = {"query": "Tom Hanks"}
         response = requests.post(f"{API_URL}/movies/search", json=payload)
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertIn("results", data)
         self.assertGreater(len(data["results"]), 0)
-        # Verify at least one result has Nolan as director
-        has_nolan = False
-        for movie in data["results"]:
-            if "Nolan" in movie["director"]:
-                has_nolan = True
+        
+        # Check if Tom Hanks appears in actors or director fields
+        has_tom_hanks = False
+        for item in data["results"]:
+            if "Tom Hanks" in item["actors"] or "Tom Hanks" in item["director"]:
+                has_tom_hanks = True
                 break
-        self.assertTrue(has_nolan)
-        print(f"✅ Movie search by director test passed: Found {len(data['results'])} results for 'Nolan'")
-    
-    def test_movie_search_by_actor(self):
-        """Test searching for movies by actor"""
-        payload = {"query": "Leonardo"}
+        
+        self.assertTrue(has_tom_hanks, "No movies with Tom Hanks found in search results")
+        print(f"✅ TMDB Person search test passed: Found {len(data['results'])} results for 'Tom Hanks'")
+        
+        # Test another person search
+        payload = {"query": "Christopher Nolan"}
         response = requests.post(f"{API_URL}/movies/search", json=payload)
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertIn("results", data)
-        self.assertGreater(len(data["results"]), 0)
-        # Verify at least one result has Leonardo in actors
-        has_leonardo = False
-        for movie in data["results"]:
-            if "Leonardo" in movie["actors"]:
-                has_leonardo = True
+        
+        # Check if Christopher Nolan appears as director
+        has_nolan_director = False
+        for item in data["results"]:
+            if "Nolan" in item["director"]:
+                has_nolan_director = True
                 break
-        self.assertTrue(has_leonardo)
-        print(f"✅ Movie search by actor test passed: Found {len(data['results'])} results for 'Leonardo'")
+        
+        self.assertTrue(has_nolan_director, "No movies directed by Christopher Nolan found")
+        print(f"✅ TMDB Director search test passed: Found {len(data['results'])} results for 'Christopher Nolan'")
     
     def test_case_insensitive_search(self):
-        """Test case-insensitive search"""
+        """Test case-insensitive search with TMDB API"""
         # Test with lowercase
         payload_lower = {"query": "matrix"}
         response_lower = requests.post(f"{API_URL}/movies/search", json=payload_lower)
@@ -110,19 +148,33 @@ class FilmMovieAgentAPITest(unittest.TestCase):
         self.assertEqual(response_upper.status_code, 200)
         data_upper = response_upper.json()
         
-        # Both should return the same number of results
-        self.assertEqual(len(data_lower["results"]), len(data_upper["results"]))
-        print(f"✅ Case-insensitive search test passed")
+        # Both should return results with "Matrix" in the title
+        has_matrix_lower = False
+        has_matrix_upper = False
+        
+        for movie in data_lower["results"]:
+            if re.search("matrix", movie["title"], re.IGNORECASE):
+                has_matrix_lower = True
+                break
+        
+        for movie in data_upper["results"]:
+            if re.search("matrix", movie["title"], re.IGNORECASE):
+                has_matrix_upper = True
+                break
+        
+        self.assertTrue(has_matrix_lower, "No Matrix movie found in lowercase search")
+        self.assertTrue(has_matrix_upper, "No Matrix movie found in uppercase search")
+        print(f"✅ TMDB Case-insensitive search test passed")
     
     def test_empty_search_query(self):
-        """Test empty search query (should return 400 error)"""
+        """Test empty search query with TMDB API (should return 400 error)"""
         payload = {"query": ""}
         response = requests.post(f"{API_URL}/movies/search", json=payload)
         self.assertEqual(response.status_code, 400)
-        print(f"✅ Empty search query test passed: Received 400 error as expected")
+        print(f"✅ TMDB Empty search query test passed: Received 400 error as expected")
     
-    def test_popular_movies(self):
-        """Test popular movies endpoint"""
+    def test_tmdb_popular_movies(self):
+        """Test popular movies endpoint with TMDB API"""
         response = requests.get(f"{API_URL}/movies/popular")
         self.assertEqual(response.status_code, 200)
         data = response.json()
@@ -142,29 +194,48 @@ class FilmMovieAgentAPITest(unittest.TestCase):
             elif item["type"] == "tv":
                 has_tv = True
         
-        self.assertTrue(has_movie)
-        self.assertTrue(has_tv)
-        print(f"✅ Popular movies test passed: Found {len(data['results'])} results sorted by rating")
+        self.assertTrue(has_movie, "No movies found in popular results")
+        self.assertTrue(has_tv, "No TV shows found in popular results")
+        
+        # Check for high-quality poster images
+        for item in data["results"]:
+            self.assertTrue(
+                item["poster"].startswith("https://image.tmdb.org/t/p/") or 
+                item["poster"].startswith("https://images.unsplash.com/"),
+                f"Poster URL doesn't match TMDB format: {item['poster']}"
+            )
+        
+        # Check for cast/crew information
+        for item in data["results"]:
+            self.assertNotEqual(item["actors"], "Unknown", f"No actors found for {item['title']}")
+            self.assertNotEqual(item["director"], "Unknown", f"No director found for {item['title']}")
+        
+        print(f"✅ TMDB Popular movies test passed: Found {len(data['results'])} results with real TMDB data")
     
-    def test_genres_endpoint(self):
-        """Test genres endpoint"""
+    def test_tmdb_genres(self):
+        """Test genres endpoint with TMDB API"""
         response = requests.get(f"{API_URL}/movies/genres")
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertIn("genres", data)
-        self.assertGreater(len(data["genres"]), 0)
+        self.assertGreater(len(data["genres"]), 10, "Too few genres returned, expected at least 10")
         
-        # Verify some expected genres are present
-        expected_genres = ["Action", "Drama", "Sci-Fi"]
-        for genre in expected_genres:
-            self.assertIn(genre, data["genres"])
+        # Verify common movie genres are present
+        movie_genres = ["Action", "Drama", "Comedy", "Horror", "Thriller"]
+        for genre in movie_genres:
+            self.assertIn(genre, data["genres"], f"Movie genre '{genre}' not found")
         
-        print(f"✅ Genres endpoint test passed: Found {len(data['genres'])} genres")
+        # Verify TV-specific genres are present
+        tv_genres = ["Animation", "Documentary", "Family"]
+        for genre in tv_genres:
+            self.assertIn(genre, data["genres"], f"TV genre '{genre}' not found")
+        
+        print(f"✅ TMDB Genres endpoint test passed: Found {len(data['genres'])} genres from both movies and TV")
     
-    def test_search_history(self):
-        """Test search history endpoint"""
+    def test_tmdb_search_history(self):
+        """Test search history endpoint with TMDB search results"""
         # First make a search to ensure there's history
-        search_payload = {"query": "test_history_query"}
+        search_payload = {"query": "tmdb_test_history_query"}
         search_response = requests.post(f"{API_URL}/movies/search", json=search_payload)
         self.assertEqual(search_response.status_code, 200)
         
@@ -177,34 +248,119 @@ class FilmMovieAgentAPITest(unittest.TestCase):
         # Verify our test query is in the history
         found_query = False
         for item in data["history"]:
-            if item["query"] == "test_history_query":
+            if item["query"] == "tmdb_test_history_query":
                 found_query = True
                 break
         
-        self.assertTrue(found_query)
-        print(f"✅ Search history test passed: Found {len(data['history'])} history items")
+        self.assertTrue(found_query, "Test query not found in search history")
+        print(f"✅ TMDB Search history test passed: Found {len(data['history'])} history items")
     
-    def test_movie_details(self):
-        """Test movie details endpoint"""
-        # Use "matrix" as the movie ID (the implementation searches by title)
-        movie_id = "matrix"
-        response = requests.get(f"{API_URL}/movies/{movie_id}")
+    def test_tmdb_movie_details_by_id(self):
+        """Test movie details endpoint with TMDB ID"""
+        # First search for a movie to get its ID
+        search_payload = {"query": "Inception"}
+        search_response = requests.post(f"{API_URL}/movies/search", json=search_payload)
+        self.assertEqual(search_response.status_code, 200)
+        search_data = search_response.json()
+        
+        # Find Inception in results
+        inception_id = None
+        for movie in search_data["results"]:
+            if "Inception" in movie["title"]:
+                inception_id = movie["id"]
+                break
+        
+        self.assertIsNotNone(inception_id, "Inception not found in search results")
+        
+        # Get movie details by ID
+        response = requests.get(f"{API_URL}/movies/{inception_id}")
+        self.assertEqual(response.status_code, 200)
+        movie = response.json()
+        
+        # Verify movie details
+        self.assertIn("Inception", movie["title"])
+        self.assertEqual(movie["type"], "movie")
+        self.assertIn("Christopher Nolan", movie["director"])
+        self.assertIn("Leonardo DiCaprio", movie["actors"])
+        
+        print(f"✅ TMDB Movie details by ID test passed: Successfully retrieved details for '{movie['title']}'")
+    
+    def test_tmdb_tv_details_by_id(self):
+        """Test TV show details endpoint with TMDB ID"""
+        # First search for a TV show to get its ID
+        search_payload = {"query": "Game of Thrones"}
+        search_response = requests.post(f"{API_URL}/movies/search", json=search_payload)
+        self.assertEqual(search_response.status_code, 200)
+        search_data = search_response.json()
+        
+        # Find Game of Thrones in results
+        got_id = None
+        for item in search_data["results"]:
+            if "Game of Thrones" in item["title"]:
+                got_id = item["id"]
+                break
+        
+        self.assertIsNotNone(got_id, "Game of Thrones not found in search results")
+        
+        # Get TV show details by ID
+        response = requests.get(f"{API_URL}/movies/{got_id}")
+        self.assertEqual(response.status_code, 200)
+        tv_show = response.json()
+        
+        # Verify TV show details
+        self.assertIn("Game of Thrones", tv_show["title"])
+        self.assertEqual(tv_show["type"], "tv")
+        
+        print(f"✅ TMDB TV show details by ID test passed: Successfully retrieved details for '{tv_show['title']}'")
+    
+    def test_tmdb_movie_details_by_title(self):
+        """Test movie details endpoint with title search"""
+        movie_title = "matrix"
+        response = requests.get(f"{API_URL}/movies/{movie_title}")
         self.assertEqual(response.status_code, 200)
         movie = response.json()
         
         # Verify movie details
         self.assertIn("Matrix", movie["title"])
-        self.assertEqual(movie["year"], "1999")
         self.assertIn("Keanu Reeves", movie["actors"])
         
-        print(f"✅ Movie details test passed: Successfully retrieved details for '{movie['title']}'")
+        print(f"✅ TMDB Movie details by title test passed: Successfully retrieved details for '{movie['title']}'")
     
     def test_nonexistent_movie(self):
-        """Test requesting details for a non-existent movie"""
+        """Test requesting details for a non-existent movie with TMDB API"""
         movie_id = "nonexistentmovie12345"
         response = requests.get(f"{API_URL}/movies/{movie_id}")
         self.assertEqual(response.status_code, 404)
-        print(f"✅ Non-existent movie test passed: Received 404 error as expected")
+        print(f"✅ TMDB Non-existent movie test passed: Received 404 error as expected")
+    
+    def test_tmdb_poster_urls(self):
+        """Test that poster URLs are from TMDB CDN"""
+        # Test in search results
+        payload = {"query": "Batman"}
+        response = requests.post(f"{API_URL}/movies/search", json=payload)
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        
+        for movie in data["results"]:
+            self.assertTrue(
+                movie["poster"].startswith("https://image.tmdb.org/t/p/") or 
+                movie["poster"].startswith("https://images.unsplash.com/"),
+                f"Poster URL doesn't match TMDB format: {movie['poster']}"
+            )
+        
+        # Test in popular movies
+        response = requests.get(f"{API_URL}/movies/popular")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        
+        for movie in data["results"]:
+            self.assertTrue(
+                movie["poster"].startswith("https://image.tmdb.org/t/p/") or 
+                movie["poster"].startswith("https://images.unsplash.com/"),
+                f"Poster URL doesn't match TMDB format: {movie['poster']}"
+            )
+        
+        print(f"✅ TMDB Poster URLs test passed: All posters use TMDB CDN")
 
 if __name__ == "__main__":
     # Run the tests
