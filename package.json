@@ -4,7 +4,7 @@
   "description": "Film & Movie Agent - Search for your favorite films and shows",
   "main": "index.js",
   "scripts": {
-    "build": "cd frontend && npm install && npm run build",
+    "build": "cd frontend && npm install && npm run build && cd .. && cp -r frontend/build ./build",
     "start": "cd frontend && npm start",
     "dev": "cd frontend && npm start"
   },
