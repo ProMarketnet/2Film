@@ -5,18 +5,22 @@
       "src": "frontend/package.json",
       "use": "@vercel/static-build",
       "config": {
-        "buildCommand": "cd frontend && npm run build",
         "distDir": "frontend/build"
       }
+    },
+    {
+      "src": "backend/server.py",
+      "use": "@vercel/python"
     }
   ],
   "routes": [
     {
+      "src": "/api/(.*)",
+      "dest": "backend/server.py"
+    },
+    {
       "src": "/(.*)",
       "dest": "frontend/build/$1"
     }
-  ],
-  "env": {
-    "REACT_APP_BACKEND_URL": "https://film-movie-agent.vercel.app/api"
-  }
+  ]
 }
