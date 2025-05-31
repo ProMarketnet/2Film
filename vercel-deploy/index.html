@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎬 Film & Movie Agent</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app">
+        <!-- Hero Section -->
+        <div class="hero">
+            <h1>🎬 Film & Movie Agent</h1>
+            <p>Discover your favorite films and shows with detailed information</p>
+            
+            <form id="search-form" class="search-form">
+                <div class="search-container">
+                    <input 
+                        type="text" 
+                        id="search-input"
+                        placeholder="Search for movies, TV shows, actors, directors..."
+                        class="search-input"
+                    >
+                    <button type="submit" id="search-btn" class="search-btn">
+                        <span id="search-icon">🔍</span>
+                        <span id="search-spinner" class="spinner" style="display: none;">⏳</span>
+                    </button>
+                </div>
+            </form>
+
+            <div class="quick-search">
+                <span>Try: </span>
+                <button class="suggestion-btn" data-query="Batman">Batman</button>
+                <button class="suggestion-btn" data-query="Marvel">Marvel</button>
+                <button class="suggestion-btn" data-query="Horror">Horror</button>
+                <button class="suggestion-btn" data-query="Comedy">Comedy</button>
+                <button class="suggestion-btn" data-query="Action">Action</button>
+            </div>
+        </div>
+
+        <!-- Error Message -->
+        <div id="error-message" class="error-message" style="display: none;"></div>
+
+        <!-- Loading Indicator -->
+        <div id="loading" class="loading" style="display: none;">
+            <div class="loading-spinner">🎬</div>
+            <p>Searching movies...</p>
+        </div>
+
+        <!-- Search Results -->
+        <div id="search-results" class="results-section" style="display: none;">
+            <h2 id="results-title">Search Results</h2>
+            <div id="movies-grid" class="movies-grid"></div>
+        </div>
+
+        <!-- Popular Movies Section -->
+        <div id="popular-section" class="popular-section">
+            <h2>Popular Movies & Shows</h2>
+            <div id="popular-grid" class="movies-grid"></div>
+        </div>
+
+        <!-- Movie Details Modal -->
+        <div id="movie-modal" class="modal-overlay" style="display: none;">
+            <div class="modal-content">
+                <button id="modal-close" class="modal-close">×</button>
+                <div class="modal-body">
+                    <div class="modal-poster">
+                        <img id="modal-image" src="" alt="Movie Poster">
+                    </div>
+                    <div class="modal-details">
+                        <h2 id="modal-title"></h2>
+                        <div class="movie-meta">
+                            <span id="modal-rating" class="rating"></span>
+                            <span id="modal-year" class="year"></span>
+                            <span id="modal-type" class="type"></span>
+                        </div>
+                        <div class="movie-plot">
+                            <h3>Plot</h3>
+                            <p id="modal-plot"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
