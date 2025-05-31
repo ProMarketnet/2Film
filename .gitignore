@@ -13,6 +13,7 @@ __pycache__/
 
 # Build outputs
 build/
+public/
 frontend/build/
 frontend/dist/
 backend/dist/
