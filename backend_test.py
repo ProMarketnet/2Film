@@ -364,4 +364,5 @@ class FilmMovieAgentAPITest(unittest.TestCase):
 
 if __name__ == "__main__":
     # Run the tests
-    unittest.main(argv=['first-arg-is-ignored'], exit=False)
+    test_suite = unittest.TestLoader().loadTestsFromTestCase(FilmMovieAgentAPITest)
+    unittest.TextTestRunner(verbosity=2).run(test_suite)
